@@ -149,3 +149,13 @@ gradlew
 gradlew.bat
 settings.gradle
 src/
+!/src/test/
+!/.gradle/
+!/.idea/
+!/gradle/
+!/src/
+!/build.gradle
+!/gradlew.bat
+!/gradle.properties
+!/settings.gradle
+!/gradlew
