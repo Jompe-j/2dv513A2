@@ -3,11 +3,11 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.sql.*
+import com.fasterxml.jackson.module.kotlin.*
 
 fun main(args: Array<String>) {
 
     getJson()
-    //MyPostgres().connectToDb()
 
 }
 
@@ -28,14 +28,15 @@ fun getJson() {
     var line: String? = br.readLine()
     while (line != null) {
         mutableList.add(line)
-        if (counter > 250000) {
+        counter++
+        if (counter > 500000) {
 
             processList(mutableList)
-            println("New batch")
             mutableList.clear()
             counter = 0
+            println("New batch")
         }
-        counter++
+
         line = br.readLine()
         if (line == null && mutableList.lastIndex != -1) {
             processList(mutableList)
@@ -47,37 +48,39 @@ fun getJson() {
 
 fun processList(mutableList: MutableList<String>) {
     val objectList = mutableListOf<ProcessComment>()
+    val mapper = jacksonObjectMapper()
+    var counter = 0
+    val startTime = System.currentTimeMillis()
     for (s in mutableList) {
-        val preProcessed = Klaxon().parse<PreProcessedComment>(s)
-        val comment = ProcessComment(preProcessed!!)
-        //multiline += "('${comment.parent_id}', '${comment.link_id}', '${comment.name}', '${comment.author}', '${comment.body}', '${comment.subreddit_id}', '${comment.subreddit}', ${comment.score}, '${comment.date}', '${comment.id}')"
-       // if (mutableList.indexOf(s) != mutableList.lastIndex)
-        //multiline += ", "
-        objectList.add(comment)
+        val preProcessed = mapper.readValue<PreProcessedComment>(s)
+        val processed = ProcessComment(preProcessed)
+        objectList.add(processed)
+        counter++
     }
-    var starTime = System.currentTimeMillis()
-    MyPostgres().batchInsert(objectList)
-    var stopTime = System.currentTimeMillis()
-    println("Insert time was ${stopTime - starTime}" )
+    val stoptime = System.currentTimeMillis()
+    println(counter)
+    println("Time: ${stoptime - startTime}")
+    println("Batch done")
 }
 
 class PreProcessedComment(
     val id: String, val parent_id: String, val link_id: String, val name: String, val author: String,
-    val body: String, val subreddit_id: String, val subreddit: String, val score: Int, val created_utc: String
+    val body: String, val subreddit_id: String, val subreddit: String, val score: Int, val created_utc: String,
+    val ups: String?, val controversiality: Int?, val distinguished: String?, val downs: Int?, val archived: String?,
+    val score_hidden: String?, val gilded: Int?, val author_flair_text: String?, val edited: String?,
+    val author_flair_css_class: String?, val retrieved_on: Int?
 )
-
-
 
 class ProcessComment(private val comment: PreProcessedComment){
     var id: Long? = null
-    var parent_id: String = comment.parent_id
-    var link_id: String = comment.link_id
-    var name: String = comment.name
-    val author: String = comment.author
-    val body: String = comment.body
+    var parent_id = comment.parent_id
+    var link_id = comment.link_id
+    var name = comment.name
+    val author = comment.author
+    val body = comment.body
     val subreddit_id = comment.subreddit_id
-    val subreddit: String = comment.subreddit
-    val score: Int = comment.score
+    val subreddit = comment.subreddit
+    val score = comment.score
     var date: Date? = null
     //var parent_id: Long? = null
 
