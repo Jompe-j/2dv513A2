@@ -1,9 +1,10 @@
-import com.beust.klaxon.Klaxon
+
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.sql.*
 import com.fasterxml.jackson.module.kotlin.*
+import java.math.BigInteger
 
 fun main(args: Array<String>) {
 
@@ -12,15 +13,8 @@ fun main(args: Array<String>) {
 }
 
 fun getJson() {
-    val fileName = "c:/users/johna/kod/2dv513/data/RC_2011-07.txt"
+    val fileName = "c:/users/johna/kod/2dv513/data/RC_2007-10.json"
     val file = File(fileName)
-//    file.forEachLine {
-//        val preProcessed = Klaxon().parse<PreProcessedComment>(it)
-//        val comment = ProcessComment(preProcessed!!)
-//        println("ID: ${comment.id} Date: ${comment.date} ParentID: ${comment.parent_id}")
-//
-//
-//    }
 
     var br = BufferedReader(FileReader(file))
     var counter = 1
@@ -29,9 +23,10 @@ fun getJson() {
     while (line != null) {
         mutableList.add(line)
         counter++
-        if (counter > 500000) {
+        if (counter > 1000000) {
 
-            processList(mutableList)
+
+            MyPostgres().batchInsert(processList(mutableList))
             mutableList.clear()
             counter = 0
             println("New batch")
@@ -39,14 +34,14 @@ fun getJson() {
 
         line = br.readLine()
         if (line == null && mutableList.lastIndex != -1) {
-            processList(mutableList)
+            MyPostgres().batchInsert(processList(mutableList))
             mutableList.clear()
         }
 
     }
 }
 
-fun processList(mutableList: MutableList<String>) {
+fun processList(mutableList: MutableList<String>): MutableList<ProcessComment> {
     val objectList = mutableListOf<ProcessComment>()
     val mapper = jacksonObjectMapper()
     var counter = 0
@@ -61,6 +56,7 @@ fun processList(mutableList: MutableList<String>) {
     println(counter)
     println("Time: ${stoptime - startTime}")
     println("Batch done")
+    return objectList
 }
 
 class PreProcessedComment(
@@ -72,7 +68,7 @@ class PreProcessedComment(
 )
 
 class ProcessComment(private val comment: PreProcessedComment){
-    var id: Long? = null
+    var id: BigInteger? = null
     var parent_id = comment.parent_id
     var link_id = comment.link_id
     var name = comment.name
@@ -82,10 +78,6 @@ class ProcessComment(private val comment: PreProcessedComment){
     val subreddit = comment.subreddit
     val score = comment.score
     var date: Date? = null
-    //var parent_id: Long? = null
-
-    //var link_id: Long? = null
-        //var subreddit_id: Long? = null
 
     init {
         date = processDate()
@@ -96,8 +88,8 @@ class ProcessComment(private val comment: PreProcessedComment){
 
     }
 
-    private fun processBas36(input: String): Long {
-        return input.toLong(36)
+    private fun processBas36(input: String): BigInteger {
+        return input.toBigInteger(36)
     }
 
     private fun processDate(): Date {
@@ -110,18 +102,13 @@ class ProcessComment(private val comment: PreProcessedComment){
 class MyPostgres {
     private val url = "jdbc:postgresql://localhost:5432/postgres"
     private val username = "postgres"
-    private val password = "KLBLKX21j!"
+    private val password =
     fun connectToDb(): Connection? {
         var db: Connection? = null
 
         try {
             db = DriverManager.getConnection(url, username, password)
             println("Connected to DB")
-
-
-//            val query = "INSERT INTO redditcomment values ('ParentID', 'LinkD', 'MyName', 'Author', 'This is a comment', 'SUBRID', 'SUBR', 13, to_date('2007-10-12', 'YYYY-MM-DD'),  100000)"
-//            var st: Statement = db.createStatement()
-//            st.executeUpdate(query)
 
         } catch (error: SQLException) {
             println(error.message)
@@ -134,7 +121,7 @@ class MyPostgres {
 
         val db = connectToDb()
         db?.autoCommit = false
-
+        val startTime = System.currentTimeMillis()
         var query = "INSERT INTO redditcomment (parent_id, link_id, name, author, body, subreddit_id, subreddit, score, created_utc, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
         var pstmt = db?.prepareStatement(query)
@@ -158,7 +145,11 @@ class MyPostgres {
         db?.close()
         if(db!!.isClosed){
             println("Db is closed")
+            val stoptime = System.currentTimeMillis()
+            println("-----------------------Insert time Time: ${stoptime - startTime}")
+            println("Insert done")
         }
+
     }
 
 }
