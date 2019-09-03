@@ -1,3 +1,4 @@
 # App to populate DB for course 2dv513 - Linneaus university
+Small Kotlin application to populate a postgresSQL database.
 
-Keywords: SQL, Kotlin, Java
+Keywords: PostgeSQL, postgres, Kotlin, Java, SQL 
